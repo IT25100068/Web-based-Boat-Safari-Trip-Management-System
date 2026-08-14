@@ -1,3 +1,26 @@
+### React / Node ###
+frontend/node_modules/
+frontend/build/
+frontend/.env
+frontend/.env.local
+
+### IntelliJ ###
+.idea/
+*.iml
+*.iws
+out/
+
+### MySQL / Secrets ###
+application-local.properties
+application-local.yml
+*.env
+database.properties
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+
 # Compiled class file
 *.class
 
