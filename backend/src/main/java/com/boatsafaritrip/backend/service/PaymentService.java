@@ -2,9 +2,11 @@ package com.boatsafaritrip.backend.service;
 
 import com.boatsafaritrip.backend.model.Payment;
 import com.boatsafaritrip.backend.repository.PaymentRepository;
+import jakarta.persistence.Id;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,10 +22,17 @@ public class PaymentService {
 
     public Payment getPaymentById(Long id){
         return paymentRepository.findById(id).
-                orElseThrow(() -> new RuntimeException("Payment not found with id " + id));
+                orElseThrow(() -> new PaymentNotFoundException("Payment not found with id " + id));
     }
 
     public Payment createPayment(Payment payment){
+        if (payment.getAmount() == null || payment.getAmount().compareTo(BigDecimal.ZERO) <= 0){
+            throw new IllegalArgumentException("Payment amound must be greater than zero");
+        }
+        if (payment.getPaymentMethod() == null || payment.getPaymentMethod().isEmpty()){
+            throw new IllegalArgumentException("Payment method is required");
+        }
+
         payment.setStatus("PENDING");
         payment.setPaymentDate(LocalDateTime.now());
         return paymentRepository.save(payment);

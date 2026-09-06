@@ -1,10 +1,13 @@
 package com.boatsafaritrip.backend.controller;
 
 import com.boatsafaritrip.backend.model.Payment;
+import com.boatsafaritrip.backend.service.PaymentNotFoundException;
 import com.boatsafaritrip.backend.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,5 +53,21 @@ public class PaymentController {
     @PutMapping("/{id}")
     public Payment updatePayment(@PathVariable Long id, @RequestBody Payment updatedPayment) {
         return paymentService.updateTransactionReference(id, updatedPayment.getTransactionReference());
+    }
+
+    @ExceptionHandler(PaymentNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handlePaymentNotFound(PaymentNotFoundException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return error;
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleInvalidInput(IllegalArgumentException ex) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", ex.getMessage());
+        return error;
     }
 }

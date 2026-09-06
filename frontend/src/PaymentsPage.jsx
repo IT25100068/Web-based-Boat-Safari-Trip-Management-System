@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import './PaymentsPage.css';
 
 function PaymentsPage() {
     const [payments, setPayments] = useState([]);
@@ -10,7 +11,9 @@ function PaymentsPage() {
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
     const [processing, setProcessing] = useState(false);
-    const [result, setResult] = useState(null); // 'success' | 'failed' | null
+    const [result, setResult] = useState(null);
+    const [showReceipt, setShowReceipt] = useState(false);
+    const [selectedPayment, setSelectedPayment] = useState(null);
 
     const API_URL = 'http://localhost:8080/api/payments';
 
@@ -24,27 +27,34 @@ function PaymentsPage() {
             .then(data => setPayments(data));
     };
 
-    // Step 1: create a PENDING payment, then open checkout
     const startCheckout = () => {
         if (!amount || !method) {
             alert('Please enter amount and select a payment method');
             return;
         }
-
+        if (Number(amount) <= 0) {
+            alert('Amount must be greater than zero');
+            return;
+        }
         fetch(API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount, paymentMethod: method }),
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'Something went wrong'); });
+                }
+                return res.json();
+            })
             .then(data => {
                 setPendingPaymentId(data.id);
                 setShowCheckout(true);
                 setResult(null);
-            });
+            })
+            .catch(err => alert(err.message));
     };
 
-    // Step 2: simulate the actual card processing
     const submitCardPayment = () => {
         if (!cardNumber || !expiry || !cvv) {
             alert('Please fill in all card details');
@@ -78,7 +88,6 @@ function PaymentsPage() {
         });
     };
 
-
     const closeCheckout = () => {
         fetchPayments();
         setShowCheckout(false);
@@ -98,143 +107,275 @@ function PaymentsPage() {
         fetch(`${API_URL}/${id}/refund`, { method: 'PUT' }).then(fetchPayments);
     };
 
+    const statusClass = (status) => {
+        if (status === 'VERIFIED') return 'status-verified';
+        if (status === 'REFUNDED') return 'status-refunded';
+        if (status === 'FAILED') return 'status-failed';
+        return 'status-pending';
+    };
+
+    const openReceipt = (payment) => {
+        setSelectedPayment(payment);
+        setShowReceipt(true);
+    };
+
+    const closeReceipt = () => {
+        setShowReceipt(false);
+        setSelectedPayment(null);
+    };
+
+    const printReceipt = () => {
+        window.print();
+    };
+
     return (
-        <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-            <h2>Payment Management</h2>
+        <div className="payments-page">
+            <div className="payments-container">
+                <header className="payments-header">
+                    <h1>Payment Management</h1>
+                    <p>Verify, refund, and track boat safari trip payments</p>
+                </header>
 
-            <div style={{ marginBottom: '20px' }}>
-                <input placeholder="Amount" value={amount} onChange={e => setAmount(e.target.value)} />
-                <select value={method} onChange={e => setMethod(e.target.value)}>
-                    <option value="">Select Payment Method</option>
-                    <option value="Card">Card</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                </select>
-                <button onClick={startCheckout}>Pay Now</button>
+                <div className="new-payment-card">
+                    <h2>New Payment</h2>
+                    <div className="new-payment-form">
+                        <input
+                            type="number"
+                            placeholder="Amount (LKR)"
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                        />
+                        <select value={method} onChange={e => setMethod(e.target.value)}>
+                            <option value="">Select payment method</option>
+                            <option value="Card">Card</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                        <button className="btn-primary" onClick={startCheckout}>Pay now</button>
+                    </div>
+                </div>
 
+                <div className="payments-table-card">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Transaction Ref</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {payments.length === 0 && (
+                            <tr>
+                                <td colSpan="6" className="empty-row">No payments yet — add one above.</td>
+                            </tr>
+                        )}
+                        {payments.map(p => (
+                            <tr key={p.id}>
+                                <td>#{p.id}</td>
+                                <td>LKR {Number(p.amount).toLocaleString()}</td>
+                                <td>{p.paymentMethod}</td>
+                                <td><span className={`status-pill ${statusClass(p.status)}`}>{p.status}</span></td>
+                                <td className="ref-cell">{p.transactionReference || '—'}</td>
+                                <td className="actions-cell">
+                                    <button
+                                        className="btn-outline"
+                                        onClick={() => verifyPayment(p.id)}
+                                        disabled={p.status !== 'PENDING'}
+                                    >
+                                        Verify
+                                    </button>
+                                    <button
+                                        className="btn-outline btn-danger"
+                                        onClick={() => refundPayment(p.id)}
+                                        disabled={p.status !== 'VERIFIED'}
+                                    >
+                                        Refund
+                                    </button>
+                                    <button
+                                        className = "btn-outline"
+                                        onClick={() => openReceipt(p)}
+                                        disabled={p.status === 'PENDING'}
+                                    >
+                                        Receipt
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            <table border="1" cellPadding="8">
-                <thead>
-                <tr>
-                    <th>ID</th><th>Amount</th><th>Method</th><th>Status</th><th>Transaction Ref</th><th>Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                {payments.map(p => (
-                    <tr key={p.id}>
-                        <td>{p.id}</td>
-                        <td>{p.amount}</td>
-                        <td>{p.paymentMethod}</td>
-                        <td>{p.status}</td>
-                        <td>{p.transactionReference || '-'}</td>
-                        <td>
-                            <button onClick={() => verifyPayment(p.id)}>Verify</button>
-                            <button onClick={() => refundPayment(p.id)}>Refund</button>
-                        </td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
-
-            {/* Checkout Modal */}
             {showCheckout && (
-                <div style={overlayStyle}>
-                    <div style={modalStyle}>
+                <div className="modal-overlay">
+                    <div className="modal-card">
                         {result === null && !processing && (
                             <>
-                                {method === 'Card' ? (
+                                {method === 'Card' && (
                                     <>
-                                        <h3>Enter Card Details</h3>
+                                        <h3>Card details</h3>
+                                        <p className="modal-hint">Use a card number ending in 0000 to simulate a failed payment.</p>
                                         <input
-                                            placeholder="Card Number (try ending in 0000 for a failed payment)"
+                                            className="modal-input"
+                                            placeholder="Card number"
                                             value={cardNumber}
                                             onChange={e => setCardNumber(e.target.value)}
-                                            style={{ width: '100%', marginBottom: '10px' }}
                                         />
-                                        <input
-                                            placeholder="Expiry (MM/YY)"
-                                            value={expiry}
-                                            onChange={e => setExpiry(e.target.value)}
-                                            style={{ width: '48%', marginRight: '4%' }}
-                                        />
-                                        <input
-                                            placeholder="CVV"
-                                            value={cvv}
-                                            onChange={e => setCvv(e.target.value)}
-                                            style={{ width: '48%' }}
-                                        />
-                                        <div style={{ marginTop: '15px' }}>
-                                            <button onClick={submitCardPayment}>Submit Payment</button>
-                                            <button onClick={closeCheckout}>Cancel</button>
+                                        <div className="modal-row">
+                                            <input
+                                                className="modal-input"
+                                                placeholder="MM/YY"
+                                                value={expiry}
+                                                onChange={e => setExpiry(e.target.value)}
+                                            />
+                                            <input
+                                                className="modal-input"
+                                                placeholder="CVV"
+                                                value={cvv}
+                                                onChange={e => setCvv(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="modal-actions">
+                                            <button className="btn-primary" onClick={submitCardPayment}>Submit payment</button>
+                                            <button className="btn-text" onClick={closeCheckout}>Cancel</button>
                                         </div>
                                     </>
-                                ) : method === 'Bank Transfer' ? (
+                                )}
+
+                                {method === 'Bank Transfer' && (
                                     <>
-                                    <h3>Bank Transfer Details</h3>
-                                    <div style={{ background: '#f0f0f0', padding: '10px', borderRadius: '4px', marginBottom: '10px' }}>
-                                        <p style={{ margin: 0 }}><strong>Account Name:</strong> Boat Safari Trip Co.</p>
-                                        <p style={{ margin: 0 }}><strong>Account Number:</strong> 1234567890</p>
-                                        <p style={{ margin: 0 }}><strong>Bank:</strong> Sample Bank</p>
-                                    </div>
-                                    <p>After transferring, enter your reference number below:</p>
-                                    <input
-                                        placeholder="Transfer Reference Number"
-                                        value={cardNumber}
-                                        onChange={e => setCardNumber(e.target.value)}
-                                        style={{ width: '100%', marginBottom: '10px' }}
-                                    />
-                                    <div style={{ marginTop: '15px' }}>
-                                        <button onClick={submitBankTransfer}>Confirm Transfer</button>
-                                        <button onClick={closeCheckout}>Cancel</button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                <h3>Confirm Cash Payment</h3>
-                                <p>This payment will be marked as pending until confirmed by staff.</p>
-                                <div style={{ marginTop: '15px' }}>
-                                    <button onClick={closeCheckout}>Confirm & Close</button>
-                                </div>
-                            </>
-                        )}
+                                        <h3>Bank transfer details</h3>
+                                        <div className="bank-details">
+                                            <p><strong>Account name</strong> Boat Safari Trip Co.</p>
+                                            <p><strong>Account number</strong> 1234567890</p>
+                                            <p><strong>Bank</strong> Sample Bank</p>
+                                        </div>
+                                        <p className="modal-hint">After transferring, enter your reference number below.</p>
+                                        <input
+                                            className="modal-input"
+                                            placeholder="Transfer reference number"
+                                            value={cardNumber}
+                                            onChange={e => setCardNumber(e.target.value)}
+                                        />
+                                        <div className="modal-actions">
+                                            <button className="btn-primary" onClick={submitBankTransfer}>Confirm transfer</button>
+                                            <button className="btn-text" onClick={closeCheckout}>Cancel</button>
+                                        </div>
+                                    </>
+                                )}
+
+                                {method === 'Cash' && (
+                                    <>
+                                        <h3>Confirm cash payment</h3>
+                                        <p className="modal-hint">This payment will stay pending until a staff member confirms it in person.</p>
+                                        <div className="modal-actions">
+                                            <button className="btn-primary" onClick={closeCheckout}>Confirm & close</button>
+                                        </div>
+                                    </>
+                                )}
                             </>
                         )}
 
-                        {processing && <h3>Processing payment...</h3>}
+                        {processing && (
+                            <div className="processing-state">
+                                <div className="spinner"></div>
+                                <p>Processing payment…</p>
+                            </div>
+                        )}
 
                         {result === 'success' && (
-                            <>
-                                <h3 style={{ color: 'green' }}>✅ Payment Successful</h3>
-                                <button onClick={closeCheckout}>Close</button>
-                            </>
-
+                            <div className="result-state">
+                                <div className="result-icon success">✓</div>
+                                <h3>Payment successful</h3>
+                                <button className="btn-primary" onClick={closeCheckout}>Close</button>
+                            </div>
                         )}
 
                         {result === 'failed' && (
-                            <>
-                                <h3 style={{ color: 'red' }}>❌ Payment Failed</h3>
-                                <p>Please check your card details and try again.</p>
-                                <button onClick={() => setResult(null)}>Try Again</button>
-                                <button onClick={closeCheckout}>Cancel</button>
-                            </>
+                            <div className="result-state">
+                                <div className="result-icon failed">✕</div>
+                                <h3>Payment failed</h3>
+                                <p className="modal-hint">Check the card details and try again.</p>
+                                <div className="modal-actions">
+                                    <button className="btn-primary" onClick={() => setResult(null)}>Try again</button>
+                                    <button className="btn-text" onClick={closeCheckout}>Cancel</button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
             )}
+
+            {showReceipt && selectedPayment && (
+                <div className="modal-overlay no-print-overlay">
+                    <div className="receipt-card">
+                        <div className="receipt-header">
+                            <h2>Boat Safari Trip Co.</h2>
+                            <p className="receipt-subtitle">Payment Receipt</p>
+                        </div>
+
+                        <div className="receipt-meta">
+                            <div>
+                                <span className="receipt-label">Invoice No.</span>
+                                <span>INV-{String(selectedPayment.id).padStart(5, '0')}</span>
+                            </div>
+                            <div>
+                                <span className="receipt-label">Date</span>
+                                <span>{new Date(selectedPayment.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                            </div>
+                        </div>
+
+                        <table className="receipt-table">
+                            <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Method</th>
+                                <th>Amount</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>Boat safari trip payment</td>
+                                <td>{selectedPayment.paymentMethod}</td>
+                                <td>LKR {Number(selectedPayment.amount).toLocaleString()}</td>
+                            </tr>
+                            </tbody>
+                            <tfoot>
+                            <tr>
+                                <td colSpan="2">Total</td>
+                                <td>LKR {Number(selectedPayment.amount).toLocaleString()}</td>
+                            </tr>
+                            </tfoot>
+                        </table>
+
+                        <div className="receipt-status-row">
+                            <span className="receipt-label">Status</span>
+                            <span className={`status-pill ${statusClass(selectedPayment.status)}`}>{selectedPayment.status}</span>
+                        </div>
+
+                        {selectedPayment.transactionReference && (
+                            <div className="receipt-status-row">
+                                <span className="receipt-label">Transaction Ref.</span>
+                                <span className="ref-cell">{selectedPayment.transactionReference}</span>
+                            </div>
+                        )}
+
+                        <p className="receipt-footer">Thank you for booking with Boat Safari Trip Co.</p>
+
+                        <div className="modal-actions no-print">
+                            <button className="btn-primary" onClick={printReceipt}>Print / Save as PDF</button>
+                            <button className="btn-text" onClick={closeReceipt}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
-
-const overlayStyle = {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    background: 'rgba(0,0,0,0.5)', display: 'flex',
-    alignItems: 'center', justifyContent: 'center',
-};
-
-const modalStyle = {
-    background: 'white', color: 'black', padding: '30px',
-    borderRadius: '8px', minWidth: '350px',
-};
 
 export default PaymentsPage;
