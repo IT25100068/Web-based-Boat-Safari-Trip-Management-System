@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import './PaymentsPage.css';
+import './AppStyles.css';
 
 function PaymentsPage() {
     const [payments, setPayments] = useState([]);
