@@ -1,7 +1,7 @@
-import PaymentsPage from './PaymentsPage';
+import PackagesPage from './PackagesPage';
 
 function App() {
-  return <PaymentsPage />;
+  return <PackagesPage />;
 }
 
 export default App;
