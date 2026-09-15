@@ -32,6 +32,27 @@ function BookingsPage() {
         fetchCustomers();
     }, []);
 
+    const [newCustomerName, setNewCustomerName] = useState('');
+    const [newCustomerEmail, setNewCustomerEmail] = useState('');
+
+    const addCustomer = () => {
+        if (!newCustomerName || !newCustomerEmail) return alert('Enter name and email');
+        fetch('http://localhost:8080/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: newCustomerName,
+                email: newCustomerEmail,
+                password: 'default123',
+                role: 'CUSTOMER',
+            }),
+        }).then(() => {
+            setNewCustomerName('');
+            setNewCustomerEmail('');
+            fetchCustomers();
+        });
+    };
+
     const createBooking = () => {
         if (!packageId || !tripDate || !seats || !customerId) {
             alert('Please fill in all fields');
@@ -95,6 +116,15 @@ function BookingsPage() {
                     <h1>Booking Management</h1>
                     <p>Create, confirm, and manage boat safari trip bookings</p>
                 </header>
+
+                <div className="new-payment-card">
+                    <h2>Add Customer</h2>
+                    <div className="new-payment-form">
+                        <input placeholder="Customer name" value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} />
+                        <input placeholder="Email" value={newCustomerEmail} onChange={e => setNewCustomerEmail(e.target.value)} />
+                        <button className="btn-primary" onClick={addCustomer}>Add Customer</button>
+                    </div>
+                </div>
 
                 <div className="new-payment-card">
                     <h2>New Booking</h2>
