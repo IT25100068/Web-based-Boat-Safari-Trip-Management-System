@@ -24,6 +24,8 @@ public class Booking {
     private String status; // PENDING, CONFIRMED, CANCELLED
     private LocalDate bookingDate;
 
+    private String createdBy; //'CUSTOMER' or 'STAFF'
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -44,4 +46,7 @@ public class Booking {
 
     public LocalDate getBookingDate() { return bookingDate; }
     public void setBookingDate(LocalDate bookingDate) { this.bookingDate = bookingDate; }
+
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
 }

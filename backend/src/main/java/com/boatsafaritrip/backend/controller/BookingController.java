@@ -4,6 +4,7 @@ import com.boatsafaritrip.backend.model.Booking;
 import com.boatsafaritrip.backend.service.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -34,13 +35,15 @@ public class BookingController {
     }
 
     @PostMapping
-    public Booking createBooking(@RequestBody Booking booking) {
-        return bookingService.createBooking(booking);
+    public Booking createBooking(@RequestBody Booking booking, Authentication authentication) {
+        String role = authentication.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
+        return bookingService.createBooking(booking, role);
     }
 
     @PutMapping("/{id}")
-    public Booking updateBooking(@PathVariable Long id, @RequestBody Booking booking) {
-        return bookingService.updateBooking(id, booking);
+    public Booking updateBooking(@PathVariable Long id, @RequestBody Booking booking, Authentication authentication) {
+        String role = authentication.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
+        return bookingService.updateBooking(id, booking, role);
     }
 
     @PutMapping("/{id}/confirm")
