@@ -9,19 +9,16 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
 
     @Autowired
     private UserRepository userRepository;
 
     @GetMapping
-    public List<User> getAllUsers() {
+    public List<User> getAllUsers(@RequestParam(required = false) String role) {
+        if (role != null) {
+            return userRepository.findByRole(role);
+        }
         return userRepository.findAll();
-    }
-
-    @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userRepository.save(user);
     }
 }

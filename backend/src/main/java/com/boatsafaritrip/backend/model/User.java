@@ -4,8 +4,8 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "users")
-
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -16,8 +16,15 @@ public class User {
     private String email;
 
     private String password;
-
     private String role;
+
+    @Column(unique = true)
+    private String phone;
+
+    @Column(unique = true, name = "nic_number")
+    private String nicNumber;
+
+    private String address;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -33,4 +40,13 @@ public class User {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+
+    public String getNicNumber() { return nicNumber; }
+    public void setNicNumber(String nicNumber) { this.nicNumber = nicNumber; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
 }
