@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import './AppStyles.css';
 
+function authHeaders() {
+    const token = localStorage.getItem('token');
+    return { Authorization: `Bearer ${token}` };
+}
+
 function PackagesPage() {
     const [packages, setPackages] = useState([]);
     const [editingId, setEditingId] = useState(null);
@@ -11,7 +16,7 @@ function PackagesPage() {
     const API_URL = 'http://localhost:8080/api/packages';
 
     const fetchPackages = () => {
-        fetch(API_URL).then(res => res.json()).then(setPackages);
+        fetch(API_URL, { headers: authHeaders() }).then(res => res.json()).then(setPackages);
     };
 
     useEffect(() => {
@@ -29,7 +34,7 @@ function PackagesPage() {
 
         fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify(form),
         })
             .then(res => {
@@ -56,12 +61,36 @@ function PackagesPage() {
     };
 
     const toggleStatus = (id) => {
-        fetch(`${API_URL}/${id}/toggle-status`, { method: 'PUT' }).then(fetchPackages);
+        fetch(`${API_URL}/${id}/toggle-status`, { method: 'PUT', headers: authHeaders() }).then(fetchPackages);
     };
 
     const deletePackage = (id) => {
         if (!window.confirm('Delete this package? This cannot be undone.')) return;
-        fetch(`${API_URL}/${id}`, { method: 'DELETE' }).then(fetchPackages);
+        fetch(`${API_URL}/${id}`, { method: 'DELETE', headers: authHeaders() }).then(fetchPackages);
+    };
+
+    const duplicatePackage = (pkg) => {
+        const newDate = window.prompt('Enter a new trip date for this package (YYYY-MM-DD):', '');
+        if (!newDate) return;
+        if (new Date(newDate) < new Date(new Date().setHours(0,0,0,0))) {
+            alert('The new date must be in the future');
+            return;
+        }
+        fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({
+                destination: pkg.destination,
+                description: pkg.description,
+                price: pkg.price,
+                totalSeats: pkg.totalSeats,
+                scheduleDate: newDate,
+                scheduleTime: pkg.scheduleTime,
+            }),
+        })
+            .then(res => { if (!res.ok) return res.json().then(e => { throw new Error(e.error); }); return res.json(); })
+            .then(() => fetchPackages())
+            .catch(err => alert(err.message));
     };
 
     return (
@@ -123,6 +152,9 @@ function PackagesPage() {
                                         {p.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                                     </button>
                                     <button className="btn-outline btn-danger" onClick={() => deletePackage(p.id)}>Delete</button>
+                                    {(p.availableSeats === 0 || new Date(p.scheduleDate) < new Date(new Date().setHours(0,0,0,0))) && (
+                                        <button className="btn-outline" onClick={() => duplicatePackage(p)}>Reopen with New Date</button>
+                                    )}
                                 </td>
                             </tr>
                         ))}
