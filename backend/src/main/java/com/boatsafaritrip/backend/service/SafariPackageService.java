@@ -15,7 +15,14 @@ public class SafariPackageService {
     private SafariPackageRepository packageRepository;
 
     public List<SafariPackage> getAllPackages() {
-        return packageRepository.findAll();
+        List<SafariPackage> packages = packageRepository.findAll();
+        packages.forEach(p -> {
+            if (p.getScheduleDate() != null && p.getScheduleDate().isBefore(java.time.LocalDate.now()) && "ACTIVE".equals(p.getStatus())) {
+                p.setStatus("INACTIVE");
+                packageRepository.save(p);
+            }
+        });
+        return packages;
     }
 
     public SafariPackage getPackageById(Long id) {
