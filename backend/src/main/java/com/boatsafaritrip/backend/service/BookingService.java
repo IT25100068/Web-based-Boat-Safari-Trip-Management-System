@@ -1,11 +1,14 @@
 package com.boatsafaritrip.backend.service;
 
 import com.boatsafaritrip.backend.model.Booking;
+import com.boatsafaritrip.backend.model.Payment;
 import com.boatsafaritrip.backend.model.SafariPackage;
 import com.boatsafaritrip.backend.repository.BookingRepository;
+import com.boatsafaritrip.backend.repository.PaymentRepository;
 import com.boatsafaritrip.backend.repository.SafariPackageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 
 import java.time.LocalDate;
 import java.util.List;
@@ -18,6 +21,15 @@ public class BookingService {
 
     @Autowired
     private SafariPackageRepository packageRepository;
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private NotificationFactory notificationFactory;
+
 
     public List<Booking> getAllBookings() {
         return bookingRepository.findAll();
@@ -32,7 +44,7 @@ public class BookingService {
         return bookingRepository.findByCustomerId(customerId);
     }
 
-    public Booking createBooking(Booking booking) {
+    public Booking createBooking(Booking booking, String requesterRole) {
         if (booking.getNumberOfSeats() == null || booking.getNumberOfSeats() <= 0) {
             throw new IllegalArgumentException("Number of seats must be greater than zero");
         }
@@ -42,7 +54,6 @@ public class BookingService {
         if (booking.getSafariPackage() == null || booking.getSafariPackage().getId() == null) {
             throw new IllegalArgumentException("A safari package must be selected");
         }
-
         if (booking.getCustomer() == null || booking.getCustomer().getId() == null) {
             throw new IllegalArgumentException("A customer must be selected");
         }
@@ -50,19 +61,42 @@ public class BookingService {
         SafariPackage pkg = packageRepository.findById(booking.getSafariPackage().getId())
                 .orElseThrow(() -> new IllegalArgumentException("Selected safari package does not exist"));
 
+        if (!"ACTIVE".equals(pkg.getStatus())) {
+            throw new IllegalArgumentException("This safari package is no longer available for booking");
+        }
+        if (pkg.getScheduleDate().isBefore(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("This trip's scheduled date has already passed");
+        }
+
         if (pkg.getAvailableSeats() == null || pkg.getAvailableSeats() < booking.getNumberOfSeats()) {
-            throw new IllegalArgumentException("Not enough seats available for this package");
+            throw new IllegalArgumentException("Not enough seats available for this package. Only " + pkg.getAvailableSeats() + " seats remaining.");
         }
 
         booking.setSafariPackage(pkg);
         booking.setStatus("PENDING");
         booking.setBookingDate(LocalDate.now());
+        booking.setCreatedBy(requesterRole);
         return bookingRepository.save(booking);
     }
 
-    public Booking updateBooking(Long id, Booking updatedBooking) {
+    public Booking updateBooking(Long id, Booking updatedBooking, String requesterRole) {
         Booking booking = getBookingById(id);
-        booking.setTripDate(updatedBooking.getTripDate());
+
+        if ("STAFF".equals(requesterRole) && "CUSTOMER".equals(booking.getCreatedBy())) {
+            throw new IllegalArgumentException("Staff cannot modify a booking the customer made themselves");
+        }
+        if (!"PENDING".equals(booking.getStatus())) {
+            throw new IllegalArgumentException("Only pending bookings can be modified");
+        }
+        if (updatedBooking.getNumberOfSeats() == null || updatedBooking.getNumberOfSeats() <= 0) {
+            throw new IllegalArgumentException("Number of seats must be greater than zero");
+        }
+
+        SafariPackage pkg = booking.getSafariPackage();
+        if (updatedBooking.getNumberOfSeats() > pkg.getAvailableSeats()) {
+            throw new IllegalArgumentException("Only " + pkg.getAvailableSeats() + " seats are available for this package");
+        }
+
         booking.setNumberOfSeats(updatedBooking.getNumberOfSeats());
         return bookingRepository.save(booking);
     }
@@ -70,15 +104,20 @@ public class BookingService {
     public Booking confirmBooking(Long id) {
         Booking booking = getBookingById(id);
 
-        SafariPackage pkg = booking.getSafariPackage();
-        if (pkg.getAvailableSeats() < booking.getNumberOfSeats()) {
-            throw new IllegalArgumentException("Not enough seats remaining to confirm this booking");
+        Payment payment = paymentRepository.findByBookingId(id)
+                .orElseThrow(() -> new IllegalArgumentException("This booking cannot be confirmed until it has been paid for"));
+
+        if (!"VERIFIED".equals(payment.getStatus())) {
+            throw new IllegalArgumentException("This booking cannot be confirmed until payment is verified. Current payment status: " + payment.getStatus());
         }
-        pkg.setAvailableSeats(pkg.getAvailableSeats() - booking.getNumberOfSeats());
-        packageRepository.save(pkg);
 
         booking.setStatus("CONFIRMED");
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        notificationService.save(notificationFactory.createBookingConfirmation(
+                booking.getCustomer(), booking.getSafariPackage().getDestination(), booking.getTripDate().toString()));
+
+        return saved;
     }
 
     public Booking cancelBooking(Long id) {
@@ -91,6 +130,11 @@ public class BookingService {
         }
 
         booking.setStatus("CANCELLED");
-        return bookingRepository.save(booking);
+        Booking saved = bookingRepository.save(booking);
+
+        notificationService.save(notificationFactory.createCancellation(
+                booking.getCustomer(), booking.getSafariPackage().getDestination()));
+
+        return saved;
     }
 }
