@@ -19,9 +19,14 @@ public class NotificationController {
     private NotificationService notificationService;
 
     @GetMapping
-    public List<Notification> getAllNotifications() {
+    public List<Notification> getAllNotifications(@RequestParam(required = false) Long recipientId) {
+        if (recipientId != null) {
+            return notificationService.getNotificationsByRecipient(recipientId);
+        }
         return notificationService.getAllNotifications();
     }
+
+
 
     @PostMapping
     public Notification createNotification(@RequestBody Notification notification) {
@@ -34,5 +39,20 @@ public class NotificationController {
         Map<String, String> error = new HashMap<>();
         error.put("error", ex.getMessage());
         return error;
+    }
+
+    @PutMapping("/{id}")
+    public Notification updateNotification(@PathVariable Long id, @RequestBody Notification notification) {
+        return notificationService.updateNotification(id, notification);
+    }
+
+    @PutMapping("/{id}/read")
+    public Notification markAsRead(@PathVariable Long id) {
+        return notificationService.markAsRead(id);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteNotification(@PathVariable Long id) {
+        notificationService.deleteNotification(id);
     }
 }
