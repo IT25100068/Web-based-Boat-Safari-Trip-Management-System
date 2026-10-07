@@ -44,12 +44,27 @@ public class StaffService {
         staffRepository.delete(staff);
     }
 
+    private static final java.util.regex.Pattern NAME_PATTERN =
+            java.util.regex.Pattern.compile("^[A-Z][a-zA-Z]*(\\s[A-Z][a-zA-Z]*)+$");
+
     private void validate(Staff staff) {
-        if (staff.getName() == null || staff.getName().isBlank()) {
-            throw new IllegalArgumentException("Staff name is required");
+        if (staff.getName() == null || !NAME_PATTERN.matcher(staff.getName().trim()).matches()) {
+            throw new IllegalArgumentException("Enter staff's full name with First and Last name, letters only, each starting with a capital letter");
         }
         if (staff.getRole() == null || staff.getRole().isBlank()) {
             throw new IllegalArgumentException("Role is required");
         }
+        if (staff.getPhone() == null || !java.util.regex.Pattern.compile("^0[0-9]{9}$").matcher(staff.getPhone()).matches()) {
+            throw new IllegalArgumentException("Enter a valid 10-digit phone number starting with 0");
+        }
+    }
+
+    public Staff setAvailability(Long id, String availability) {
+        Staff staff = getStaffById(id);
+        if ("ASSIGNED".equals(staff.getAvailability())) {
+            throw new IllegalArgumentException("Cannot change availability while staff is actively assigned to a trip");
+        }
+        staff.setAvailability(availability);
+        return staffRepository.save(staff);
     }
 }
