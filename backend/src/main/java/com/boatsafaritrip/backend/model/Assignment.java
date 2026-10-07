@@ -23,8 +23,11 @@ public class Assignment {
     @JoinColumn(name = "guide_id")
     private Staff guide;
 
-    private String tripDestination;
-    private LocalDate tripDate;
+    @ManyToOne
+    @JoinColumn(name = "safari_package_id")
+    private SafariPackage safariPackage;
+
+
     private String status; // SCHEDULED, COMPLETED, CANCELLED
 
     public Long getId() { return id; }
@@ -39,11 +42,13 @@ public class Assignment {
     public Staff getGuide() { return guide; }
     public void setGuide(Staff guide) { this.guide = guide; }
 
-    public String getTripDestination() { return tripDestination; }
-    public void setTripDestination(String tripDestination) { this.tripDestination = tripDestination; }
+    public SafariPackage getSafariPackage() {
+        return safariPackage;
+    }
 
-    public LocalDate getTripDate() { return tripDate; }
-    public void setTripDate(LocalDate tripDate) { this.tripDate = tripDate; }
+    public void setSafariPackage(SafariPackage safariPackage) {
+        this.safariPackage = safariPackage;
+    }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

@@ -45,4 +45,14 @@ public class StaffController {
         error.put("error", ex.getMessage());
         return error;
     }
+
+    @PutMapping("/{id}/off-duty")
+    public Staff setOffDuty(@PathVariable Long id) {
+        return staffService.setAvailability(id, "OFF_DUTY");
+    }
+
+    @PutMapping("/{id}/available")
+    public Staff setAvailable(@PathVariable Long id) {
+        return staffService.setAvailability(id, "AVAILABLE");
+    }
 }

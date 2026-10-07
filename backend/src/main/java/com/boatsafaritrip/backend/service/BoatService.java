@@ -44,9 +44,12 @@ public class BoatService {
         boatRepository.delete(boat);
     }
 
+    private static final java.util.regex.Pattern BOAT_NAME_PATTERN =
+            java.util.regex.Pattern.compile("^[A-Za-z][A-Za-z\\s]{1,39}$");
+
     private void validate(Boat boat) {
-        if (boat.getName() == null || boat.getName().isBlank()) {
-            throw new IllegalArgumentException("Boat name is required");
+        if (boat.getName() == null || !BOAT_NAME_PATTERN.matcher(boat.getName().trim()).matches()) {
+            throw new IllegalArgumentException("Boat name must contain only letters and spaces");
         }
         if (boat.getCapacity() == null || boat.getCapacity() <= 0) {
             throw new IllegalArgumentException("Capacity must be greater than zero");
