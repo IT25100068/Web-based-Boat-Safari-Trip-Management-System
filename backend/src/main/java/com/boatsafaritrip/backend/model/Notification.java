@@ -11,17 +11,22 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String recipientName;
-    private String type; // BOOKING_CONFIRMATION, PAYMENT_UPDATE, CANCELLATION, REMINDER
+    @ManyToOne
+    @JoinColumn(name = "recipient_id")
+    private User recipient;
+
+    private String type;
     private String message;
-    private String status; // SENT, PENDING
+    private String status;
     private LocalDateTime createdAt;
+
+    private Boolean isRead = false;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public String getRecipientName() { return recipientName; }
-    public void setRecipientName(String recipientName) { this.recipientName = recipientName; }
+    public User getRecipient() { return recipient; }
+    public void setRecipient(User recipient) { this.recipient = recipient; }
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
@@ -34,4 +39,7 @@ public class Notification {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Boolean getIsRead() { return isRead; }
+    public void setIsRead(Boolean isRead) { this.isRead = isRead; }
 }
