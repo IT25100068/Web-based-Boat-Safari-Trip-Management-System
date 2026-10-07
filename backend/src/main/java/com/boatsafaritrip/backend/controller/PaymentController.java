@@ -5,6 +5,7 @@ import com.boatsafaritrip.backend.service.PaymentNotFoundException;
 import com.boatsafaritrip.backend.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -20,7 +21,10 @@ public class PaymentController {
     private PaymentService paymentService;
 
     @GetMapping
-    public List<Payment> getPayments(){
+    public List<Payment> getAllPayments(@RequestParam(required = false) Long customerId) {
+        if (customerId != null) {
+            return paymentService.getPaymentsByCustomer(customerId);
+        }
         return paymentService.getAllPayments();
     }
 
@@ -30,8 +34,9 @@ public class PaymentController {
     }
 
     @PostMapping
-    public Payment createPayment(@RequestBody Payment payment){
-        return paymentService.createPayment(payment);
+    public Payment createPayment(@RequestBody Payment payment, Authentication authentication) {
+        String email = authentication.getName();
+        return paymentService.createPayment(payment, email);
     }
 
     @PostMapping("/{id}/process")
@@ -69,5 +74,10 @@ public class PaymentController {
         Map<String, String> error = new HashMap<>();
         error.put("error", ex.getMessage());
         return error;
+    }
+
+    @DeleteMapping("/{id}")
+    public void deletePayment(@PathVariable Long id) {
+        paymentService.deletePendingPayment(id);
     }
 }
